@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Y자형 딸기 스마트팜 시뮬레이션 (Ver 2.4)</title>
+    <style>
+        body {
+            font-family: 'Nanum Gothic', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f4f8;
+            margin: 0;
+            padding: 20px;
+        }
+        h2 {
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        p.subtitle {
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+        .canvas-container {
+            position: relative;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            background-color: #87CEEB;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+        }
+        .controls {
+            margin-top: 20px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 860px;
+        }
+        .control-row {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .control-row:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        label {
+            font-weight: bold;
+            color: #555;
+            min-width: 90px;
+            font-size: 0.9em;
+        }
+        input[type="range"] {
+            width: 140px;
+            cursor: pointer;
+        }
+        .value-display {
+            min-width: 80px;
+            text-align: right;
+            color: #007bff;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+        .legend {
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #666;
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .color-box {
+            width: 15px;
+            height: 15px;
+            border-radius: 3px;
+        }
+        .sun-status {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            margin-top: 10px;
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .status-item {
+            text-align: center;
+            font-size: 0.85em;
+            background: white;
+            padding: 5px 8px;
+            border-radius: 5px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            min-width: 70px;
+        }
+        .status-value {
+            font-weight: bold;
+            font-size: 1.1em;
+            color: #e67e22;
+            display: block;
+            margin-top: 2px;
+        }
+        .warning-msg {
+            color: #e74c3c;
+            font-weight: bold;
+            font-size: 0.9em;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>☀️ Y자형 딸기 스마트팜 시뮬레이션 (Ver 2.4)</h2>
+    <p class="subtitle">* 하우스/베드 높이, 파이프 두께, 계절별 태양 고도 정밀 시뮬레이션</p>
+
+    <div class="canvas-container">
+        <canvas id="farmCanvas" width="900" height="600"></canvas>
+    </div>
+
+    <div class="controls">
+        <!-- Sun & Season Control -->
+        <div class="control-row" style="background-color: #fff3cd; padding: 15px; border-radius: 5px;">
+            <div class="control-group">
+                <label>📅 월(Month)</label>
+                <input type="range" id="month" min="1" max="12" step="1" value="12">
+                <span class="value-display" id="val-month">12월 (동지)</span>
+            </div>
+            <div class="control-group">
+                <label>⏰ 시간대</label>
+                <input type="range" id="sunTime" min="8" max="16" step="0.1" value="12">
+                <span class="value-display" id="val-sunTime">12:00</span>
+            </div>
+        </div>
+
+        <!-- House & Bed Settings (Restored) -->
+        <div class="control-row">
+            <div class="control-group">
+                <label>🏠 하우스 높이</label>
+                <input type="range" id="houseHeight" min="3.0" max="5.0" step="0.1" value="4.0">
+                <span class="value-display" id="val-houseHeight">4.0m</span>
+            </div>
+            <div class="control-group">
+                <label>🛏️ 베드 높이</label>
+                <input type="range" id="bedHeight" min="10" max="100" step="5" value="35">
+                <span class="value-display" id="val-bedHeight">35cm</span>
+            </div>
+        </div>
+
+        <!-- Layout Settings -->
+        <div class="control-row">
+            <div class="control-group">
+                <label>열 개수</label>
+                <input type="range" id="rows" min="3" max="6" step="1" value="4">
+                <span class="value-display" id="val-rows">4열</span>
+            </div>
+            <div class="control-group">
+                <label>베드 간격</label>
+                <input type="range" id="rowSpacing" min="100" max="250" step="5" value="170">
+                <span class="value-display" id="val-rowSpacing">170cm</span>
+            </div>
+        </div>
+        
+        <!-- Pot & Human Settings -->
+        <div class="control-row">
+            <div class="control-group">
+                <label>화분 단 간격</label>
+                <input type="range" id="potSpacingY" min="20" max="60" step="5" value="40">
+                <span class="value-display" id="val-potSpacingY">40cm</span>
+            </div>
+            <div class="control-group">
+                <label>파이프 두께</label>
+                <input type="range" id="pipeThickness" min="20" max="200" step="5" value="30">
+                <span class="value-display" id="val-pipeThickness">30mm</span>
+            </div>
+            <div class="control-group">
+                <label>👨‍🌾 사람 키</label>
+                <input type="range" id="humanHeight" min="150" max="190" step="1" value="175">
+                <span class="value-display" id="val-humanHeight">175cm</span>
+            </div>
+        </div>
+
+        <!-- Status & Warnings -->
+        <div class="control-row" style="justify-content: space-between; width: 100%;">
+            <div id="width-warning" class="warning-msg">⚠️ 주의: 베드 간격이 너무 넓어 하우스 폭을 초과합니다!</div>
+        </div>
+
+        <!-- Status Panel -->
+        <div class="sun-status" id="status-container">
+            <!-- Items generated by JS -->
+        </div>
+    </div>
+
+    <div class="legend">
+        <div class="legend-item"><div class="color-box" style="background:#e74c3c;"></div> 수광(양호)</div>
+        <div class="legend-item"><div class="color-box" style="background:#555;"></div> 그늘(부족)</div>
+        <div class="legend-item"><div class="color-box" style="background:#3498db;"></div> Y자 화분</div>
+        <div class="legend-item"><div class="color-box" style="background:#2c3e50;"></div> 중앙 파이프</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('farmCanvas');
+        const ctx = canvas.getContext('2d');
+        const statusContainer = document.getElementById('status-container');
+        const warningMsg = document.getElementById('width-warning');
+        
+        // Scale: 1 meter = 80 pixels
+        const SCALE = 80; 
+        const GROUND_Y = 550; 
+        const HOUSE_WIDTH_M = 8.3;
+        const LATITUDE = 36.5; // 경상북도 위도
+        
+        const params = {
+            houseHeight: 4.0, 
+            bedHeight: 35, 
+            humanHeight: 175, 
+            shoulderHeight: 2.2, 
+            rows: 4,          
+            rowSpacing: 170,  
+            potSpacingY: 40,  
+            pipeThickness: 30,
+            sunTime: 12.0,
+            month: 12
+        };
+
+        const inputs = {
+            sunTime: document.getElementById('sunTime'),
+            month: document.getElementById('month'),
+            rows: document.getElementById('rows'),
+            rowSpacing: document.getElementById('rowSpacing'),
+            potSpacingY: document.getElementById('potSpacingY'),
+            pipeThickness: document.getElementById('pipeThickness'),
+            humanHeight: document.getElementById('humanHeight'),
+            houseHeight: document.getElementById('houseHeight'),
+            bedHeight: document.getElementById('bedHeight')
+        };
+
+        const displays = {
+            sunTime: document.getElementById('val-sunTime'),
+            month: document.getElementById('val-month'),
+            rows: document.getElementById('val-rows'),
+            rowSpacing: document.getElementById('val-rowSpacing'),
+            potSpacingY: document.getElementById('val-potSpacingY'),
+            pipeThickness: document.getElementById('val-pipeThickness'),
+            humanHeight: document.getElementById('val-humanHeight'),
+            houseHeight: document.getElementById('val-houseHeight'),
+            bedHeight: document.getElementById('val-bedHeight')
+        };
+
+        let statusDisplays = []; 
+        let obstacles = [];
+
+        // Mouse Drag Logic Variables
+        let humanX = 100;
+        let isDragging = false;
+
+        initStatusPanel(params.rows);
+
+        // Event Listeners for Controls
+        Object.keys(inputs).forEach(key => {
+            inputs[key].addEventListener('input', (e) => {
+                params[key] = parseFloat(e.target.value);
+                
+                if (key === 'sunTime') {
+                    const h = Math.floor(params[key]);
+                    const m = Math.round((params[key] - h) * 60);
+                    displays[key].innerText = `${h}:${m < 10 ? '0'+m : m}`;
+                }
+                else if (key === 'month') {
+                    const m = params[key];
+                    let season = "";
+                    if(m == 12 || m <= 2) season = "(겨울/동지)";
+                    else if(m >= 6 && m <= 8) season = "(여름/하지)";
+                    else season = "(봄/가을)";
+                    displays[key].innerText = `${m}월 ${season}`;
+                }
+                else if (key === 'rows') {
+                    displays[key].innerText = params[key] + '열';
+                    initStatusPanel(params[key]); 
+                }
+                else if (key === 'rowSpacing') {
+                    displays[key].innerText = params[key] + 'cm';
+                }
+                else if (key === 'potSpacingY') {
+                    displays[key].innerText = params[key] + 'cm';
+                }
+                else if (key === 'pipeThickness') {
+                    displays[key].innerText = params[key] + 'mm';
+                }
+                else if (key === 'humanHeight') {
+                    displays[key].innerText = params[key] + 'cm';
+                }
+                else if (key === 'houseHeight') {
+                    displays[key].innerText = params[key].toFixed(1) + 'm';
+                }
+                else if (key === 'bedHeight') {
+                    displays[key].innerText = params[key] + 'cm';
+                }
+                
+                draw();
+            });
+        });
+
+        // Mouse Event Listeners for Dragging Human
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            // Check if mouse is near human
+            const hH_px = (params.humanHeight / 100) * SCALE;
+            const hY = GROUND_Y - hH_px;
+            
+            // Simple bounding box for human width approx 40px
+            if (x > humanX - 30 && x < humanX + 30 && y > hY - 20 && y < GROUND_Y + 10) {
+                isDragging = true;
+                canvas.style.cursor = 'grabbing';
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                const rect = canvas.getBoundingClientRect();
+                humanX = e.clientX - rect.left;
+                
+                // Boundaries
+                if(humanX < 50) humanX = 50;
+                if(humanX > canvas.width - 50) humanX = canvas.width - 50;
+                
+                draw();
+            } else {
+                // Hover effect
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                const hH_px = (params.humanHeight / 100) * SCALE;
+                const hY = GROUND_Y - hH_px;
+                
+                if (x > humanX - 30 && x < humanX + 30 && y > hY - 20 && y < GROUND_Y + 10) {
+                    canvas.style.cursor = 'grab';
+                } else {
+                    canvas.style.cursor = 'default';
+                }
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            isDragging = false;
+            canvas.style.cursor = 'default';
+        });
+
+        function initStatusPanel(count) {
+            statusContainer.innerHTML = '';
+            statusDisplays = [];
+            for(let i=0; i<count; i++) {
+                const div = document.createElement('div');
+                div.className = 'status-item';
+                let label = (i+1) + '열';
+                div.innerHTML = `${label} 수광<br><span class="status-value">-</span>`;
+                statusContainer.appendChild(div);
+                statusDisplays.push(div.querySelector('.status-value'));
+            }
+        }
+
+        // --- 천문학적 태양 위치 계산 (Solar Position Algorithm) ---
+        function calculateRealSunPos() {
+            // 1. 상수 및 입력값 변환
+            const latRad = LATITUDE * (Math.PI / 180);
+            const month = params.month;
+            const hour = params.sunTime;
+            
+            // 2. 적위(Declination) 계산
+            const dayOfYear = (month - 1) * 30 + 15; 
+            const declinationDeg = 23.45 * Math.sin((360 / 365) * (dayOfYear - 81) * (Math.PI / 180));
+            const declinationRad = declinationDeg * (Math.PI / 180);
+
+            // 3. 시간각(Hour Angle) 계산
+            const hourAngleDeg = (hour - 12) * 15; 
+            const hourAngleRad = hourAngleDeg * (Math.PI / 180);
+
+            // 4. 태양 고도(Elevation/Altitude) 계산
+            const sinElev = Math.sin(latRad) * Math.sin(declinationRad) + 
+                            Math.cos(latRad) * Math.cos(declinationRad) * Math.cos(hourAngleRad);
+            const elevRad = Math.asin(sinElev);
+            const elevDeg = elevRad * (Math.PI / 180);
+
+            // 5. 방위각(Azimuth) 계산 (남쪽 0도 기준, 서쪽 +, 동쪽 -)
+            const cosAz = (Math.sin(declinationRad) - Math.sin(latRad) * Math.sin(elevRad)) / 
+                          (Math.cos(elevRad) * Math.cos(latRad));
+            // clamp for acos
+            let azRad = Math.acos(Math.min(Math.max(cosAz, -1), 1));
+            if (hour < 12) azRad = -azRad; // 오전은 동쪽(-)
+
+            // 6. 2D 단면도(East-West Plane) 투영 각도 계산
+            const vecE = Math.cos(elevRad) * Math.sin(azRad);
+            const vecU = Math.sin(elevRad);
+
+            // Sun Position for Visuals
+            const sunDist = 500;
+            const cx = canvas.width / 2;
+            const cy = GROUND_Y;
+            
+            const sx = cx + vecE * sunDist; 
+            const sy = cy - vecU * sunDist; 
+            
+            return { x: sx, y: sy, vecE: vecE, vecU: vecU, elevationDeg: elevDeg };
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const centerX = canvas.width / 2;
+            const housePixelWidth = HOUSE_WIDTH_M * SCALE;
+            const leftWallX = centerX - housePixelWidth / 2;
+            const rightWallX = centerX + housePixelWidth / 2;
+            
+            drawSky();
+            
+            const totalWidth = (params.rows - 1) * params.rowSpacing + 60;
+            if ((totalWidth / 100) > HOUSE_WIDTH_M) {
+                warningMsg.style.display = 'block';
+            } else {
+                warningMsg.style.display = 'none';
+            }
+            
+            registerObstacles(centerX); 
+            
+            drawGreenhouse(leftWallX, rightWallX);
+            drawSunAndRays();
+            drawRows(centerX);
+            drawHuman(humanX); 
+            drawDimensions(leftWallX, rightWallX);
+        }
+
+        function drawSky() {
+            const month = params.month;
+            const isWinter = (month >= 11 || month <= 2);
+            ctx.fillStyle = isWinter ? '#D6EAF8' : '#87CEEB';
+            ctx.fillRect(0, 0, canvas.width, GROUND_Y);
+        }
+
+        function getRowX(rowIdx, centerX) {
+            const spacingPx = (params.rowSpacing / 100) * SCALE;
+            const totalW = (params.rows - 1) * spacingPx;
+            const startX = centerX - totalW / 2;
+            return startX + rowIdx * spacingPx;
+        }
+
+        function registerObstacles(centerX) {
+            obstacles = [];
+            const bedH_px = (params.bedHeight / 100) * SCALE;
+            const tierGap_px = (params.potSpacingY / 100) * SCALE;
+            const potBaseY = GROUND_Y - bedH_px;
+            
+            const pipeThickPx = (params.pipeThickness / 1000) * SCALE;
+            const pipeHalf = pipeThickPx / 2;
+
+            for (let i = 0; i < params.rows; i++) {
+                const cx = getRowX(i, centerX);
+                const armLen = 30; 
+                const leafR = 12; 
+                
+                for(let tier=0; tier<3; tier++) {
+                    const yPos = potBaseY - 20 - (tierGap_px * tier);
+                    obstacles.push({ type: 'circle', x: cx - armLen, y: yPos, r: leafR, row: i });
+                    obstacles.push({ type: 'circle', x: cx + armLen, y: yPos, r: leafR, row: i });
+                }
+                
+                const topY = potBaseY - 20 - (tierGap_px * 2);
+                obstacles.push({ 
+                    type: 'rect', 
+                    x: cx - pipeHalf, 
+                    y: topY, 
+                    w: pipeThickPx, 
+                    h: (potBaseY - topY), 
+                    row: i 
+                });
+            }
+        }
+
+        function checkSunlight(tx, ty, myRowIdx) {
+            const sun = calculateRealSunPos();
+            
+            // 밤이거나 해가 지평선 아래면 빛 없음
+            if(sun.vecU <= 0) return false;
+
+            const dx = sun.x - tx;
+            const dy = sun.y - ty;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            const ux = dx / dist;
+            const uy = dy / dist;
+            
+            for (let obs of obstacles) {
+                if (obs.type === 'circle') {
+                    if (obs.row === myRowIdx && Math.abs(obs.x - tx) < 10) continue; 
+                    
+                    const vObsX = obs.x - tx;
+                    const vObsY = obs.y - ty;
+                    const dot = vObsX * ux + vObsY * uy;
+                    if (dot > 0 && dot < dist) {
+                         const projX = tx + ux * dot;
+                         const projY = ty + uy * dot;
+                         const distToLine = Math.sqrt((obs.x - projX)**2 + (obs.y - projY)**2);
+                         if (distToLine < obs.r) return false;
+                    }
+                } 
+                else if (obs.type === 'rect') {
+                    const rx = obs.x;
+                    const ry = obs.y;
+                    const rw = obs.w;
+                    const rh = obs.h;
+                    
+                    let tMin = 0;
+                    let tMax = dist;
+                    
+                    if (Math.abs(ux) < 1e-6) { 
+                        if (tx < rx || tx > rx + rw) continue; 
+                    } else {
+                        let t1 = (rx - tx) / ux;
+                        let t2 = ((rx + rw) - tx) / ux;
+                        if (t1 > t2) [t1, t2] = [t2, t1];
+                        tMin = Math.max(tMin, t1);
+                        tMax = Math.min(tMax, t2);
+                        if (tMin > tMax) continue;
+                    }
+                    
+                    if (Math.abs(uy) < 1e-6) { 
+                        if (ty < ry || ty > ry + rh) continue; 
+                    } else {
+                        let t1 = (ry - ty) / uy;
+                        let t2 = ((ry + rh) - ty) / uy;
+                        if (t1 > t2) [t1, t2] = [t2, t1];
+                        tMin = Math.max(tMin, t1);
+                        tMax = Math.min(tMax, t2);
+                        if (tMin > tMax) continue;
+                    }
+                    
+                    if (tMin > 1) { 
+                        return false; 
+                    }
+                }
+            }
+            return true;
+        }
+
+        function drawSunAndRays() {
+            const sun = calculateRealSunPos();
+            
+            ctx.beginPath();
+            ctx.arc(sun.x, sun.y, 40, 0, Math.PI * 2);
+            ctx.fillStyle = '#f1c40f'; 
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = 'orange';
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            
+            // Draw Rays (if sun is up)
+            if(sun.vecU > 0) {
+                ctx.strokeStyle = 'rgba(255, 255, 0, 0.15)';
+                ctx.lineWidth = 1;
+                const numRays = 12;
+                for(let i=0; i<=numRays; i++) {
+                    const targetX = canvas.width * (i/numRays);
+                    ctx.beginPath();
+                    ctx.moveTo(sun.x, sun.y);
+                    ctx.lineTo(targetX, GROUND_Y);
+                    ctx.stroke();
+                }
+            }
+        }
+
+        function drawRows(centerX) {
+            let rowStatuses = [];
+            
+            for (let i = 0; i < params.rows; i++) {
+                const cx = getRowX(i, centerX);
+                const litCount = drawYPotSystem(cx, i);
+                
+                const pct = Math.round((litCount / 6) * 100);
+                if(statusDisplays[i]) {
+                    statusDisplays[i].innerText = pct + "%";
+                    statusDisplays[i].style.color = pct < 50 ? '#555' : (pct < 100 ? '#e67e22' : '#27ae60');
+                }
+            }
+        }
+
+        function drawYPotSystem(cx, rowIdx) {
+            const bedH_px = (params.bedHeight / 100) * SCALE;
+            const tierGap_px = (params.potSpacingY / 100) * SCALE;
+            const pipeThickPx = (params.pipeThickness / 1000) * SCALE;
+            
+            ctx.fillStyle = '#95a5a6';
+            ctx.fillRect(cx - 5, GROUND_Y - bedH_px, 10, bedH_px); 
+            ctx.fillRect(cx - 20, GROUND_Y - bedH_px, 40, 5);    
+
+            const potBaseY = GROUND_Y - bedH_px;
+            const potTopY = potBaseY - 20 - tierGap_px * 2;
+            
+            ctx.fillStyle = '#2c3e50'; 
+            ctx.fillRect(cx - pipeThickPx/2, potTopY, pipeThickPx, (potBaseY - potTopY));
+            
+            let litCounter = 0;
+            litCounter += drawTier(cx, potBaseY - 20, 1, rowIdx);
+            litCounter += drawTier(cx, potBaseY - 20 - tierGap_px, 2, rowIdx);
+            litCounter += drawTier(cx, potBaseY - 20 - tierGap_px * 2, 3, rowIdx);
+            
+            return litCounter;
+        }
+
+        function drawTier(cx, y, tierNum, rowIdx) {
+            const armLen = 30; 
+            let litCount = 0;
+            
+            const leftLit = checkSunlight(cx - armLen, y - 10, rowIdx);
+            if(leftLit) litCount++;
+            
+            const rightLit = checkSunlight(cx + armLen, y - 10, rowIdx);
+            if(rightLit) litCount++;
+
+            ctx.beginPath();
+            ctx.moveTo(cx, y + 10); 
+            ctx.quadraticCurveTo(cx - 10, y + 5, cx - armLen, y - 10);
+            ctx.moveTo(cx, y + 10);
+            ctx.quadraticCurveTo(cx + 10, y + 5, cx + armLen, y - 10);
+            ctx.strokeStyle = '#3498db';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+
+            ctx.fillStyle = '#ecf0f1';
+            ctx.beginPath();
+            ctx.arc(cx - armLen, y - 10, 8, 0, Math.PI * 2);
+            ctx.arc(cx + armLen, y - 10, 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            drawLeaves(cx - armLen, y - 10, leftLit);
+            drawLeaves(cx + armLen, y - 10, rightLit);
+            drawStrawberry(cx - armLen - 5, y - 5, leftLit);
+            drawStrawberry(cx + armLen + 5, y - 5, rightLit);
+            
+            return litCount;
+        }
+
+        function drawLeaves(x, y, isLit) {
+            ctx.fillStyle = isLit ? '#27ae60' : '#34495e'; 
+            ctx.beginPath();
+            ctx.ellipse(x, y - 10, 12, 6, Math.PI / 4, 0, Math.PI * 2);
+            ctx.ellipse(x, y - 10, 12, 6, -Math.PI / 4, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawStrawberry(x, y, isLit) {
+            ctx.fillStyle = isLit ? '#e74c3c' : '#5c2b29'; 
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.bezierCurveTo(x + 5, y + 2, x + 5, y + 10, x, y + 15);
+            ctx.bezierCurveTo(x - 5, y + 10, x - 5, y + 2, x, y);
+            ctx.fill();
+        }
+
+        function drawGreenhouse(x1, x2) {
+            ctx.beginPath();
+            ctx.moveTo(x1, GROUND_Y);
+            const shoulderPixelH = params.shoulderHeight * SCALE;
+            ctx.lineTo(x1, GROUND_Y - shoulderPixelH);
+            const peakPixelH = params.houseHeight * SCALE;
+            const peakX = (x1 + x2) / 2;
+            const peakY = GROUND_Y - peakPixelH;
+            ctx.quadraticCurveTo(peakX, peakY - 50, x2, GROUND_Y - shoulderPixelH);
+            ctx.lineTo(x2, GROUND_Y);
+            ctx.lineTo(x1, GROUND_Y);
+            
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.fill();
+            ctx.strokeStyle = '#34495e';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.moveTo(0, GROUND_Y);
+            ctx.lineTo(canvas.width, GROUND_Y);
+            ctx.strokeStyle = '#7f8c8d';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
+        function drawHuman(x) {
+            const hH_px = (params.humanHeight / 100) * SCALE;
+            const headR = hH_px / 8;
+            const bodyH = hH_px * 0.4;
+            const legH = hH_px * 0.45;
+            const startY = GROUND_Y - legH - bodyH - headR * 2;
+
+            ctx.beginPath(); ctx.arc(x, startY + headR, headR, 0, Math.PI * 2);
+            ctx.fillStyle = '#f1c40f'; ctx.fill(); ctx.stroke();
+            ctx.fillStyle = '#3498db'; ctx.fillRect(x - headR, startY + headR * 2, headR * 2, bodyH);
+            
+            // Arm (simple reach)
+            ctx.beginPath();
+            ctx.moveTo(x - headR, startY + headR * 2 + 5);
+            ctx.lineTo(x - headR - 15, startY + headR * 2 + 30);
+            ctx.stroke();
+
+            // Legs
+            ctx.fillStyle = '#2c3e50';
+            ctx.fillRect(x - headR + 2, startY + headR * 2 + bodyH, headR - 3, legH);
+            ctx.fillRect(x + 2, startY + headR * 2 + bodyH, headR - 3, legH);
+            
+            // Height Line
+            ctx.beginPath();
+            ctx.moveTo(x + 20, GROUND_Y);
+            ctx.lineTo(x + 20, GROUND_Y - hH_px);
+            ctx.strokeStyle = 'red';
+            ctx.setLineDash([3, 3]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            ctx.fillStyle = 'red';
+            ctx.font = '11px sans-serif';
+            ctx.fillText(`${Math.round(params.humanHeight)}cm`, x + 25, GROUND_Y - hH_px/2);
+        }
+
+        function drawDimensions(x1, x2) {
+            ctx.beginPath(); ctx.moveTo(x1, GROUND_Y + 30); ctx.lineTo(x2, GROUND_Y + 30);
+            ctx.strokeStyle = 'black'; ctx.stroke();
+            ctx.fillStyle = 'black'; ctx.font = '14px sans-serif'; 
+            ctx.fillText(`하우스 폭 ${HOUSE_WIDTH_M}m`, (x1 + x2) / 2 - 40, GROUND_Y + 45);
+        }
+
+        draw(); 
+
+    </script>
+</body>
+</html>
